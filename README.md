@@ -1,33 +1,31 @@
-# 🗺️ Nation Empires
+🗺️ Nation Empires
+📅 Project Timeline
+Phase 1 — Blog Era (6 months)
 
-## 📅 Project Timeline
+Publish consistent, high-quality geopolitical content
 
-### Phase 1 — Blog Era *(6 months)*
+Grow readership and community engagement
 
-* Publish consistent, high-quality geopolitical content
-* Grow readership and community engagement
-* Refine the thematic and visual identity of Nation Empires
+Refine the thematic and visual identity of Nation Empires
 
-### Phase 2 — Game Development
+Phase 2 — Game Development
 
-* Transition from analysis to interactive design
-* Integrate blog information into gameplay mechanics and worldbuilding
+Transition from analysis to interactive design
 
----
+Integrate blog information into gameplay mechanics and worldbuilding
 
-## 🎨 Brand & Style
+🎨 Brand & Style
 
-* **Tone:** Analytical yet accessible — bridging academic rigor with engaging storytelling
-* **Visuals:** Maps, infographics, and symbolic motifs drawn from the Nation Empires brand
-* **Identity:** Every post reinforces the strategic, immersive feel that will define the game
+Tone: Analytical yet accessible — bridging academic rigor with engaging storytelling
 
----
+Visuals: Maps, infographics, and symbolic motifs drawn from the Nation Empires brand
 
-## 📬 Connect
+Identity: Every post reinforces the strategic, immersive feel that will define the game
 
-* **Website:** [https://nationempires.com](https://nationempires.com)
-* **Contact:** [nationempires@outlook.com](mailto:nationempires@outlook.com)
+📬 Connect
 
----
+Website: https://nationempires.com
 
-> *“In the game of nations, knowledge is the first weapon.”*
+Contact: nationempires@outlook.com
+
+“In the game of nations, knowledge is the first weapon.”
