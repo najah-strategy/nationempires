@@ -31,6 +31,3 @@
 ---
 
 > *“In the game of nations, knowledge is the first weapon.”*
-
-This README already reads like a declaration.
-
