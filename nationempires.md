@@ -1,4 +1,4 @@
-Nation Empires
+🗺️ Nation Empires
 ## 📅 Project Timeline
 **Phase 1 — Blog Era (6 months)**  
 - Publish consistent, high‑quality geopolitical content.
