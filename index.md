@@ -20,182 +20,163 @@ features:
     description: "Create scenarios and export replays perfect for streamers."
 ---
 
-<!-- MapLibre CSS (move this into your site head if you prefer) -->
-<link href="https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css" rel="stylesheet" />
+<!-- OpenLayers CSS (move to site head if you prefer) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@7.4.0/ol.css">
 
 <section class="home-section">
   <div class="grid">
     <div class="grid-item hoi-panel">
-      <h3>Interactive Map (GeoJSON subdivisions demo)</h3>
+      <h3>Interactive Map (OpenLayers subdivisions demo)</h3>
 
-      <!-- Map container (fills panel width) -->
-      <div id="map" style="width:100%; height:520px; border-radius:4px; overflow:hidden;"></div>
+      <!-- Map container -->
+      <div id="olmap" style="width:100%; height:520px; border-radius:4px; overflow:hidden;"></div>
 
-      <!-- MapLibre JS (move to footer include for production) -->
-      <script src="https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.js"></script>
+      <!-- Popup overlay (OpenLayers overlay element) -->
+      <div id="popup" class="ol-popup" style="display:block; position:absolute; background:rgba(0,0,0,0.75); color:#fff; padding:6px 8px; border-radius:4px; font-size:13px; transform:translate(-50%, -100%); pointer-events:none;"></div>
 
+      <!-- Subdivisions list (click to zoom/select) -->
+      <div id="subdivisions-index" style="margin-top:0.8rem;">
+        <strong>Subdivisions (click to zoom):</strong>
+        <ul id="subdiv-list" style="padding-left:1rem; margin-top:0.25rem;"></ul>
+      </div>
+
+      <!-- OpenLayers JS (move to footer include for production) -->
+      <script src="https://cdn.jsdelivr.net/npm/ol@7.4.0/dist/ol.js"></script>
       <script>
-        // Small helper: compute bbox of a GeoJSON feature (works for Polygon/MultiPolygon)
-        function computeFeatureBBox(feature) {
-          const coords = (feature.geometry.type === 'Polygon')
-            ? feature.geometry.coordinates
-            : feature.geometry.type === 'MultiPolygon'
-              ? feature.geometry.coordinates.flat()
-              : [];
-          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-          coords.forEach(ring => {
-            ring.forEach(pt => {
-              const [x, y] = pt;
-              if (x < minX) minX = x;
-              if (y < minY) minY = y;
-              if (x > maxX) maxX = x;
-              if (y > maxY) maxY = y;
-            });
-          });
-          return [[minX, minY], [maxX, maxY]];
-        }
-
-        document.addEventListener("DOMContentLoaded", function () {
+        document.addEventListener('DOMContentLoaded', function () {
           try {
-            const map = new maplibregl.Map({
-              container: 'map',
-              style: 'https://demotiles.maplibre.org/style.json',
-              center: [0, 20],
+            // Base OSM raster layer
+            const raster = new ol.layer.Tile({
+              source: new ol.source.OSM()
+            });
+
+            // Map view centered globally
+            const view = new ol.View({
+              center: ol.proj.fromLonLat([0, 20]),
               zoom: 2
             });
 
-            map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
-
-            map.on('load', async () => {
-              // Load a small demo GeoJSON from /data/sample-country.geojson
-              // Replace this file with your real subdivision GeoJSON files later.
-              const geojsonUrl = '/data/sample-country.geojson';
-
-              // Add GeoJSON source (generateId: true makes feature.id available)
-              map.addSource('subdivisions', {
-                type: 'geojson',
-                data: geojsonUrl,
-                generateId: true
-              });
-
-              // Fill layer for subdivisions
-              map.addLayer({
-                id: 'subdivisions-fill',
-                type: 'fill',
-                source: 'subdivisions',
-                paint: {
-                  'fill-color': ['case',
-                    ['boolean', ['feature-state', 'selected'], false],
-                    '#ffd166', // selected color
-                    '#dbeafe'  // default color
-                  ],
-                  'fill-opacity': 0.85
-                }
-              });
-
-              // Border lines
-              map.addLayer({
-                id: 'subdivisions-line',
-                type: 'line',
-                source: 'subdivisions',
-                paint: {
-                  'line-color': '#94a3b8',
-                  'line-width': 0.8
-                }
-              });
-
-              // Hover highlight (uses feature state)
-              let hoveredId = null;
-              map.on('mousemove', 'subdivisions-fill', (e) => {
-                map.getCanvas().style.cursor = 'pointer';
-                if (e.features.length > 0) {
-                  if (hoveredId !== null && hoveredId !== e.features[0].id) {
-                    map.setFeatureState({ source: 'subdivisions', id: hoveredId }, { hover: false });
-                  }
-                  hoveredId = e.features[0].id;
-                  map.setFeatureState({ source: 'subdivisions', id: hoveredId }, { hover: true });
-                }
-              });
-              map.on('mouseleave', 'subdivisions-fill', () => {
-                map.getCanvas().style.cursor = '';
-                if (hoveredId !== null) {
-                  map.setFeatureState({ source: 'subdivisions', id: hoveredId }, { hover: false });
-                }
-                hoveredId = null;
-              });
-
-              // Click handler: popup, highlight, and fit to bounds
-              let selectedId = null;
-              map.on('click', 'subdivisions-fill', (e) => {
-                const feat = e.features && e.features[0];
-                if (!feat) return;
-
-                // Show popup with properties
-                const props = feat.properties || {};
-                const name = props.name || props.NAME || props.NAME_1 || 'Unknown';
-                new maplibregl.Popup({ offset: 6 })
-                  .setLngLat(e.lngLat)
-                  .setHTML(`<strong>${name}</strong><br/>id: ${feat.id}`)
-                  .addTo(map);
-
-                // Clear previous selected state
-                if (selectedId !== null) {
-                  map.setFeatureState({ source: 'subdivisions', id: selectedId }, { selected: false });
-                }
-
-                // Set selected state (used by fill-color expression)
-                selectedId = feat.id;
-                map.setFeatureState({ source: 'subdivisions', id: selectedId }, { selected: true });
-
-                // Fit map to the clicked feature bounds
-                const bbox = computeFeatureBBox(feat);
-                map.fitBounds(bbox, { padding: 20, maxZoom: 9, duration: 600 });
-              });
-
-              // Optional: build a simple sidebar list of features (client-side)
-              // We'll fetch the GeoJSON and render a tiny index below the map.
-              try {
-                const resp = await fetch(geojsonUrl);
-                const gj = await resp.json();
-                const listEl = document.createElement('div');
-                listEl.style.marginTop = '0.75rem';
-                listEl.innerHTML = '<strong>Subdivisions (click to zoom):</strong>';
-                const ul = document.createElement('ul');
-                ul.style.paddingLeft = '1rem';
-                (gj.features || []).forEach(f => {
-                  const li = document.createElement('li');
-                  const display = f.properties.name || f.properties.NAME || f.properties.NAME_1 || `id:${f.id}`;
-                  const a = document.createElement('a');
-                  a.href = '#';
-                  a.textContent = display;
-                  a.style.cursor = 'pointer';
-                  a.onclick = (ev) => {
-                    ev.preventDefault();
-                    // programmatically highlight and fit
-                    if (selectedId !== null) {
-                      map.setFeatureState({ source: 'subdivisions', id: selectedId }, { selected: false });
-                    }
-                    selectedId = f.id;
-                    map.setFeatureState({ source: 'subdivisions', id: selectedId }, { selected: true });
-                    const bbox = computeFeatureBBox(f);
-                    map.fitBounds(bbox, { padding: 20, maxZoom: 9, duration: 600 });
-                  };
-                  li.appendChild(a);
-                  ul.appendChild(li);
-                });
-                listEl.appendChild(ul);
-                document.getElementById('map').parentNode.appendChild(listEl);
-              } catch (err) {
-                console.warn('Could not build subdivisions index:', err);
-              }
+            const map = new ol.Map({
+              target: 'olmap',
+              layers: [raster],
+              view: view,
+              controls: ol.control.defaults({ attribution: true, rotate: false })
             });
 
-            // Slight resize fix for some Jekyll themes
-            setTimeout(() => { map.resize(); }, 250);
-          } catch (e) {
-            const el = document.getElementById('map');
+            // Popup overlay
+            const popupEl = document.getElementById('popup');
+            const popupOverlay = new ol.Overlay({
+              element: popupEl,
+              positioning: 'bottom-center',
+              stopEvent: false,
+              offset: [0, -10]
+            });
+            map.addOverlay(popupOverlay);
+
+            // Load GeoJSON subdivisions (replace with your real subdivision file)
+            fetch('/data/sample-country.geojson')
+              .then(response => response.json())
+              .then(gj => {
+                // Read features into vector source (transform to map projection)
+                const features = new ol.format.GeoJSON().readFeatures(gj, { featureProjection: 'EPSG:3857' });
+                const vectorSource = new ol.source.Vector({ features: features });
+
+                // Styles
+                const defaultStyle = new ol.style.Style({
+                  stroke: new ol.style.Stroke({ color: '#94a3b8', width: 1 }),
+                  fill: new ol.style.Fill({ color: 'rgba(219,234,254,0.85)' })
+                });
+                const hoverStyle = new ol.style.Style({
+                  stroke: new ol.style.Stroke({ color: '#2b6cb0', width: 2 }),
+                  fill: new ol.style.Fill({ color: 'rgba(59,130,246,0.2)' })
+                });
+                const selectedStyle = new ol.style.Style({
+                  stroke: new ol.style.Stroke({ color: '#ffcc00', width: 2 }),
+                  fill: new ol.style.Fill({ color: 'rgba(255,209,102,0.9)' })
+                });
+
+                // Vector layer
+                const vectorLayer = new ol.layer.Vector({
+                  source: vectorSource,
+                  style: function(feature) {
+                    return defaultStyle;
+                  }
+                });
+                map.addLayer(vectorLayer);
+
+                // Fit view to data bounds
+                if (!vectorSource.isEmpty()) {
+                  view.fit(vectorSource.getExtent(), { size: map.getSize(), maxZoom: 8, padding: [20, 20, 20, 20] });
+                }
+
+                // Interaction: pointermove (hover)
+                const pointerMoveSelect = new ol.interaction.Select({
+                  condition: ol.events.condition.pointerMove,
+                  layers: [vectorLayer],
+                  style: hoverStyle
+                });
+                map.addInteraction(pointerMoveSelect);
+
+                // Interaction: click select
+                const clickSelect = new ol.interaction.Select({
+                  condition: ol.events.condition.singleClick,
+                  layers: [vectorLayer],
+                  style: selectedStyle
+                });
+                map.addInteraction(clickSelect);
+
+                // Show popup and center on selected feature
+                clickSelect.on('select', function(e) {
+                  const selected = e.selected[0];
+                  if (selected) {
+                    const props = selected.getProperties();
+                    const name = props.name || props.NAME || props.NAME_1 || 'Unknown';
+                    // compute center of geometry extent for overlay position
+                    const extent = selected.getGeometry().getExtent();
+                    const center = ol.extent.getCenter(extent);
+                    popupEl.innerHTML = '<div style="font-weight:700;">' + name + '</div>';
+                    popupOverlay.setPosition(center);
+                    // optionally fit tighter to feature
+                    view.fit(extent, { padding: [20,20,20,20], maxZoom: 9, duration: 400 });
+                  } else {
+                    popupOverlay.setPosition(undefined);
+                  }
+                });
+
+                // Build subdivisions index list
+                const listEl = document.getElementById('subdiv-list');
+                features.forEach((f, idx) => {
+                  const li = document.createElement('li');
+                  li.style.marginBottom = '0.25rem';
+                  const name = f.get('name') || f.get('NAME') || f.get('NAME_1') || ('Region ' + (idx+1));
+                  const a = document.createElement('a');
+                  a.href = '#';
+                  a.textContent = name;
+                  a.style.cursor = 'pointer';
+                  a.onclick = function(ev) {
+                    ev.preventDefault();
+                    // zoom to feature and select it
+                    const extent = f.getGeometry().getExtent();
+                    view.fit(extent, { padding: [30,30,30,30], maxZoom: 9, duration: 400 });
+                    clickSelect.getFeatures().clear();
+                    clickSelect.getFeatures().push(f);
+                  };
+                  li.appendChild(a);
+                  listEl.appendChild(li);
+                });
+              })
+              .catch(err => {
+                console.error('Could not load GeoJSON:', err);
+                const errEl = document.createElement('div');
+                errEl.textContent = 'Subdivision data failed to load.';
+                errEl.style.color = '#ffb4c3';
+                document.getElementById('olmap').parentNode.appendChild(errEl);
+              });
+
+          } catch (err) {
+            console.error('OpenLayers init error:', err);
+            const el = document.getElementById('olmap');
             if (el) el.innerHTML = '<div style="padding:1rem; color:#cbd5e1">Map failed to load.</div>';
-            console.error('Map init error:', e);
           }
         });
       </script>
@@ -217,8 +198,7 @@ features:
 <section class="home-section">
   <h3>Devlog</h3>
   <ul>
-    <li>Initial prototype: nation generator finished.</li>
-    <li>Interactive subdivisions demo loaded from <code>/data/sample-country.geojson</code>.</li>
-    <li>Discord seeded with 120 alpha testers.</li>
+    <li>OpenLayers interactive subdivisions demo loaded from <code>/data/sample-country.geojson</code>.</li>
+    <li>Click a region on the map or pick it from the list to zoom and view details.</li>
   </ul>
 </section>
